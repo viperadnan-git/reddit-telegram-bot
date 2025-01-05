@@ -1,0 +1,4 @@
+python-telegram-bot
+python-dotenv
+praw
+pymongo

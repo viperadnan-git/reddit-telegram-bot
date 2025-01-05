@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth Code</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+            padding: 1rem;
+        }
+        .container {
+            background-color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 600px;
+            margin: 1rem;
+        }
+        .code {
+            font-family: monospace;
+            font-size: 1.2rem;
+            padding: 1.5rem;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin: 1.5rem 0;
+            word-break: break-all;
+        }
+        .copy-button {
+            background-color: #0079d3;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+        .copy-button:hover {
+            background-color: #005fa3;
+        }
+        .disclaimer {
+            color: #6c757d;
+            font-size: 0.8rem;
+            margin-top: 1rem;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>OAuth Code</h1>
+        <div id="code" class="code">Loading...</div>
+        <button id="copy-button" onclick="copyCode()" class="copy-button">Copy Code</button>
+        <p class="disclaimer">
+            This code is for one-time use only and will expire shortly. Please copy and use it immediately. 
+            Do not share this code with anyone as it provides access to your account.
+        </p>
+    </div>
+
+    <script>
+        // Get code from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const codeElement = document.getElementById('code');
+        const copyButton = document.getElementById('copy-button');
+        
+        // Display code if present
+        if (code) {
+            codeElement.textContent = code;
+        } else {
+            codeElement.textContent = 'No code found in URL';
+            copyButton.style.display = 'none';
+        }
+
+        // Copy code function
+        function copyCode() {
+            if (!code) {
+                return;
+            }
+
+            navigator.clipboard.writeText(code).then(() => {
+                copyButton.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyButton.textContent = 'Copy Code';
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        }
+    </script>
+</body>
+</html>
