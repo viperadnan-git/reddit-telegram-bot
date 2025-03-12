@@ -17,7 +17,7 @@ from src.config import Config
 from src.constant import ConversationState
 from src.database import db
 from src.handlers.common import cancel_handler, start_command_handler
-from src.handlers.login import auth_code_handler, login_handler
+from src.handlers.login import auth_code_handler, get_login_handler, login_command_handler, logout_command_handler
 from src.handlers.post import get_post_handler
 from src.handlers.subreddit import (
     join_command_handler,
@@ -42,7 +42,7 @@ async def user_middleware(update: Update, context: BotContext) -> None:
         if not user:
             user = db.update_user(
                 user_id,
-                {
+                set={
                     "name": update.effective_user.full_name,
                     "username": update.effective_user.username,
                 },
@@ -73,17 +73,8 @@ def main():
         CommandHandler(["subreddits", "subs", "subreddit"], subreddit_command_handler)
     )
 
-    application.add_handler(
-        ConversationHandler(
-            entry_points=[CommandHandler("login", login_handler)],
-            states={
-                ConversationState.WAITING_FOR_AUTH_CODE: [
-                    MessageHandler(filters.TEXT, auth_code_handler)
-                ],
-            },
-            fallbacks=[CommandHandler("cancel", cancel_handler)],
-        )
-    )
+    application.add_handler(get_login_handler())
+    application.add_handler(CommandHandler("logout", logout_command_handler))
 
     application.add_handler(get_post_handler())
 

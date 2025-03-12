@@ -3,7 +3,6 @@ import logging
 import praw
 
 from src.config import Config
-from src.database import db
 
 logger = logging.getLogger(__name__)
 
@@ -39,5 +38,4 @@ class RedditManager(praw.Reddit):
             check_for_async=False,
         )
         refresh_token = reddit.auth.authorize(code)
-        db.update_user(user_id, {"refresh_token": refresh_token})
         return refresh_token, str(reddit.user.me())

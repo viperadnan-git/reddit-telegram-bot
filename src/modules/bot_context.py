@@ -9,3 +9,4 @@ class BotContext(CallbackContext[Bot, dict, dict, dict]):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.reddit = None

@@ -9,10 +9,10 @@ class Database:
         self.db = self.client.get_database("reddit-telegram-bot")
         self.users = self.db.get_collection("users")
 
-    def update_user(self, user_id: str, data: dict) -> None:
+    def update_user(self, user_id: str, set: dict = {}, unset: dict = {}) -> None:
         result = self.users.find_one_and_update(
             {"_id": user_id},
-            {"$set": data},
+            {"$set": set, "$unset": unset},
             upsert=True,
             return_document=ReturnDocument.AFTER,
         )
