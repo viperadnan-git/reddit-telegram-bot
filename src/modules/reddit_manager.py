@@ -1,10 +1,12 @@
-import os
-import praw
-from src.config import Config
 import logging
+
+import praw
+
+from src.config import Config
 from src.database import db
 
 logger = logging.getLogger(__name__)
+
 
 class RedditManager(praw.Reddit):
     def __init__(self, refresh_token: str):

@@ -10,11 +10,12 @@ class Database:
         self.users = self.db.get_collection("users")
 
     def update_user(self, user_id: str, data: dict) -> None:
-        result = self.users.find_one_and_update({
-            "_id": user_id
-        }, {
-            "$set": data
-        }, upsert=True, return_document=ReturnDocument.AFTER)
+        result = self.users.find_one_and_update(
+            {"_id": user_id},
+            {"$set": data},
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
+        )
         return result
 
     def get_user(self, user_id: str) -> dict:

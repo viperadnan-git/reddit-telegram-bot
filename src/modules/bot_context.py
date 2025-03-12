@@ -1,5 +1,5 @@
-from telegram.ext import CallbackContext
 from telegram import Bot
+from telegram.ext import CallbackContext
 
 from src.modules.reddit_manager import RedditManager
 

@@ -1,4 +1,10 @@
+# Temporary and virtual environment files
 tmp/
 .venv/
 .env
+
+# Python
 __pycache__/
+
+# MacOS
+.DS_Store

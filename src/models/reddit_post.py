@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from telegram import File
 
 from src.enums import MediaType
+
 
 @dataclass
 class RedditPost:

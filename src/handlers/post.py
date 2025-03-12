@@ -1,27 +1,39 @@
 import os
 from uuid import uuid4
+
 import requests
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update, File
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
+from telegram.ext import (
+    CallbackQueryHandler,
+    CommandHandler,
+    ConversationHandler,
+    MessageHandler,
+    filters,
+)
 
 from src.config import Config
 from src.constant import ConversationState
 from src.enums import MediaType
+from src.handlers.common import cancel_handler
 from src.models.reddit_post import RedditPost
 from src.modules.bot_context import BotContext
 from src.modules.decorators import restricted
-from src.modules.reddit_manager import RedditManager
-from src.utils import is_url
+from src.utils import delete_file, is_url
 
 
-async def get_telegram_file_url(message: Message) -> File:
+async def get_telegram_file_url(message: Message) -> tuple[str, MediaType, str]:
     file = None
     media_type = None
+    file_path = None
     if message.video:
         file = await message.video.get_file()
         media_type = MediaType.VIDEO
+        ext = message.video.file_name.split(".")[-1]
+        file_path = os.path.join(Config.TEMP_DIR, f"video_{uuid4()}.{ext}")
     elif message.photo:
         file = await message.photo[-1].get_file()
         media_type = MediaType.IMAGE
+        file_path = os.path.join(Config.TEMP_DIR, f"image_{uuid4()}.jpg")
     elif message.document:
         file = await message.document.get_file()
         media_type = (
@@ -33,26 +45,31 @@ async def get_telegram_file_url(message: Message) -> File:
                 else MediaType.UNKNOWN
             )
         )
-    return file.file_path, media_type
+        ext = message.document.file_path.split(".")[-1]
+        file_path = os.path.join(Config.TEMP_DIR, f"document_{uuid4()}.{ext}")
+    return file.file_path, media_type, file_path
 
 
 async def ask_for_title(update: Update, context: BotContext) -> None:
     await context.bot.send_message(
-        chat_id=update.message.chat_id, text="Please enter the title of the post\n\n<i>Send /skip to skip this step</i>"
+        chat_id=update.message.chat_id,
+        text="Please enter the title of the post\n\n<i>Send /skip to skip this step</i>",
     )
     return ConversationState.WAITING_FOR_TITLE
 
 
 async def ask_for_body(update: Update, context: BotContext) -> None:
     await context.bot.send_message(
-        chat_id=update.message.chat_id, text="Please enter the body of the post\n\n<i>Send /skip to skip this step</i>"
+        chat_id=update.message.chat_id,
+        text="Please enter the body of the post\n\n<i>Send /skip to skip this step</i>",
     )
     return ConversationState.WAITING_FOR_BODY
 
 
 async def ask_for_media(update: Update, context: BotContext) -> None:
     await context.bot.send_message(
-        chat_id=update.message.chat_id, text="Please enter the media of the post\n\n<i>Send /skip to skip this step</i>"
+        chat_id=update.message.chat_id,
+        text="Please enter the media of the post\n\n<i>Send /skip to skip this step</i>",
     )
     return ConversationState.WAITING_FOR_MEDIA
 
@@ -138,14 +155,17 @@ async def post_message_handler(update: Update, context: BotContext) -> None:
     context.user_data["post"] = post
 
     if update.message.video or update.message.photo or update.message.document:
-        file_url, media_type = await get_telegram_file_url(update.message)
+        file_url, media_type, file_path = await get_telegram_file_url(update.message)
 
         if media_type == MediaType.UNKNOWN:
-            await context.bot.send_message(chat_id=update.message.chat_id, text="Unsupported media type")
+            await context.bot.send_message(
+                chat_id=update.message.chat_id, text="Unsupported media type"
+            )
             return ConversationState.END
 
         post.media_url = file_url
         post.media_type = media_type
+        post.media_path = file_path
 
         caption = update.message.caption or update.message.text
         if caption:
@@ -187,20 +207,24 @@ async def post_media_handler(update: Update, context: BotContext) -> None:
 
     if "/skip" == update.message.text:
         return await ask_for_body(update, context)
-    
+
     if update.message.text and is_url(update.message.text):
         post.media_url = update.message.text
         post.media_type = MediaType.URL
         return await ask_for_body(update, context)
 
-    media_url, media_type = await get_telegram_file_url(update.message)
+    media_url, media_type, file_path = await get_telegram_file_url(update.message)
 
     if media_type == MediaType.UNKNOWN:
-        await context.bot.send_message(chat_id=update.message.chat_id, text="Unsupported media type, please try again")
+        await context.bot.send_message(
+            chat_id=update.message.chat_id,
+            text="Unsupported media type, please try again",
+        )
         return ConversationState.WAITING_FOR_MEDIA
 
     post.media_url = media_url
     post.media_type = media_type
+    post.media_path = file_path
     return await ask_for_body(update, context)
 
 
@@ -223,16 +247,15 @@ async def post_flair_handler(update: Update, context: BotContext) -> None:
     return await ask_for_post_confirmation(update, context)
 
 
-def download_media(media_url: str, media_type: MediaType) -> str:
-    response = requests.get(media_url, stream=True)
+def download_media(url: str, output_path: str) -> str:
+    response = requests.get(url, stream=True)
     response.raise_for_status()
 
-    file_path = f"media_{uuid4()}.{media_type}"
-    file_path = os.path.join(Config.TEMP_DIR, file_path)
-    with open(file_path, "wb") as file:
+    with open(output_path, "wb") as file:
         for chunk in response.iter_content(chunk_size=8192):
             file.write(chunk)
-    return file_path
+    return output_path
+
 
 async def post_post_confirmation_handler(update: Update, context: BotContext) -> None:
     callback_query = update.callback_query
@@ -244,10 +267,11 @@ async def post_post_confirmation_handler(update: Update, context: BotContext) ->
     print(post)
     message = await update.callback_query.message.edit_text(text="Posting...")
 
-    if post.media_type == MediaType.URL:
-        media_path = post.media_url
-    else:
-        media_path = download_media(post.media_url, post.media_type)
+    if post.media_type:
+        if post.media_type == MediaType.URL:
+            media_path = post.media_url
+        else:
+            media_path = download_media(post.media_url, post.media_path)
 
     if post.media_type == MediaType.IMAGE:
         context.reddit.subreddit(post.subreddit).submit_image(
@@ -266,5 +290,54 @@ async def post_post_confirmation_handler(update: Update, context: BotContext) ->
             title=post.title, selftext=post.body, flair_id=post.flair_id
         )
 
+    delete_file(post.media_path)
+
     await message.edit_text(text="Post posted successfully")
     return ConversationState.END
+
+
+def get_post_handler() -> ConversationHandler:
+    return ConversationHandler(
+        entry_points=[
+            MessageHandler(
+                filters.TEXT
+                | filters.VIDEO
+                | filters.PHOTO
+                | filters.Document.VIDEO
+                | filters.Document.IMAGE,
+                post_message_handler,
+            )
+        ],
+        states={
+            ConversationState.WAITING_FOR_TITLE: [
+                MessageHandler(filters.TEXT, post_title_handler)
+            ],
+            ConversationState.WAITING_FOR_BODY: [
+                MessageHandler(filters.TEXT, post_body_handler)
+            ],
+            ConversationState.WAITING_FOR_MEDIA: [
+                MessageHandler(
+                    filters.TEXT
+                    | filters.VIDEO
+                    | filters.PHOTO
+                    | filters.Document.VIDEO
+                    | filters.Document.IMAGE,
+                    post_media_handler,
+                )
+            ],
+            ConversationState.WAITING_FOR_SUBREDDIT: [
+                CallbackQueryHandler(post_subreddit_handler, pattern="^p_subreddit:")
+            ],
+            ConversationState.WAITING_FOR_FLAIR: [
+                CallbackQueryHandler(post_flair_handler, pattern="^p_flair:")
+            ],
+            ConversationState.WAITING_FOR_POST_CONFIRMATION: [
+                CallbackQueryHandler(
+                    post_post_confirmation_handler, pattern="^p_confirm:"
+                )
+            ],
+        },
+        fallbacks=[
+            CommandHandler("cancel", cancel_handler),
+        ],
+    )

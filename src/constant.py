@@ -4,7 +4,6 @@ from telegram.ext import ConversationHandler
 class ConversationState:
     WAITING_FOR_AUTH_CODE = "waiting_for_auth_code"
 
-    
     WAITING_FOR_TITLE = "waiting_for_title"
     WAITING_FOR_BODY = "waiting_for_body"
     WAITING_FOR_MEDIA = "waiting_for_media"
