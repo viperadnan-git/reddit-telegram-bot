@@ -89,8 +89,8 @@ def main():
 
     if Config.WEBHOOK_URL:
         application.run_webhook(
-            listen=Config.WEBHOOK_HOST,
-            port=Config.WEBHOOK_PORT,
+            listen=Config.HOST,
+            port=Config.PORT,
             webhook_url=Config.WEBHOOK_URL,
             secret_token=Config.SECRET_TOKEN,
         )

@@ -18,8 +18,8 @@ class Config:
         REDDIT_CLIENT_SECRET = os.environ["REDDIT_CLIENT_SECRET"]
         MONGO_URI = os.environ["MONGO_URI"]
         WEBHOOK_URL = os.getenv("WEBHOOK_URL")
-        WEBHOOK_PORT = os.getenv("WEBHOOK_PORT", 8000)
-        WEBHOOK_HOST = os.getenv("WEBHOOK_HOST", "0.0.0.0")
+        PORT = os.getenv("PORT", 8000)
+        HOST = os.getenv("HOST", "0.0.0.0")
 
         __TMP_DIR = os.getenv("TMP_DIR", "tmp")
         TMP_DIR = Path(__TMP_DIR)
