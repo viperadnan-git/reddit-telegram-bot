@@ -87,7 +87,15 @@ def main():
 
     application.add_handler(get_post_handler())
 
-    application.run_polling()
+    if Config.WEBHOOK_URL:
+        application.run_webhook(
+            listen=Config.WEBHOOK_HOST,
+            port=Config.WEBHOOK_PORT,
+            webhook_url=Config.WEBHOOK_URL,
+            secret_token=Config.SECRET_TOKEN,
+        )
+    else:
+        application.run_polling()
 
 
 if __name__ == "__main__":
