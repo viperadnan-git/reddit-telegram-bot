@@ -29,11 +29,11 @@ async def get_telegram_file_url(message: Message) -> tuple[str, MediaType, str]:
         file = await message.video.get_file()
         media_type = MediaType.VIDEO
         ext = message.video.file_name.split(".")[-1]
-        file_path = os.path.join(Config.TEMP_DIR, f"video_{uuid4()}.{ext}")
+        file_path = Config.TMP_DIR / f"video_{uuid4()}.{ext}"
     elif message.photo:
         file = await message.photo[-1].get_file()
         media_type = MediaType.IMAGE
-        file_path = os.path.join(Config.TEMP_DIR, f"image_{uuid4()}.jpg")
+        file_path = Config.TMP_DIR / f"image_{uuid4()}.jpg"
     elif message.document:
         file = await message.document.get_file()
         media_type = (
@@ -46,7 +46,7 @@ async def get_telegram_file_url(message: Message) -> tuple[str, MediaType, str]:
             )
         )
         ext = message.document.file_path.split(".")[-1]
-        file_path = os.path.join(Config.TEMP_DIR, f"document_{uuid4()}.{ext}")
+        file_path = Config.TMP_DIR / f"document_{uuid4()}.{ext}"
     return file.file_path, media_type, file_path
 
 
@@ -264,7 +264,6 @@ async def post_post_confirmation_handler(update: Update, context: BotContext) ->
         return ConversationState.END
 
     post = context.user_data["post"]
-    print(post)
     message = await update.callback_query.message.edit_text(text="Posting...")
 
     if post.media_type:

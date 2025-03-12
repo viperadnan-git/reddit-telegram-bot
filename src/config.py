@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -16,9 +17,10 @@ class Config:
         REDDIT_CLIENT_SECRET = os.environ["REDDIT_CLIENT_SECRET"]
         MONGO_URI = os.environ["MONGO_URI"]
 
-        TEMP_DIR = os.environ.get("TEMP_DIR", "tmp")
-        if not os.path.exists(TEMP_DIR):
-            os.makedirs(TEMP_DIR)
+        __TMP_DIR = os.environ.get("TMP_DIR", "tmp")
+        TMP_DIR = Path(__TMP_DIR)
+        if not TMP_DIR.exists():
+            TMP_DIR.mkdir(parents=True, exist_ok=True)
     except KeyError as e:
         logger.error(f"Missing environment variable: {e}")
         raise
