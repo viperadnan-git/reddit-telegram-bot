@@ -50,7 +50,8 @@ async def auth_code_handler(update: Update, context: BotContext):
     refresh_token, username = RedditManager.authorize_user(
         user_id, auth_code, client_id=client_id, client_secret=client_secret
     )
-    db.update_user(user_id, set={"refresh_token": refresh_token})
+    context.user.refresh_token = refresh_token
+    context.user.save()
 
     update_user(update, context, user_id)
     await update.message.reply_text(
