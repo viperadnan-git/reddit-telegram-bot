@@ -1,11 +1,12 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import CommandHandler, ConversationHandler, MessageHandler, filters
 
 from src.constant import ConversationState
 from src.database import db
 from src.handlers.common import cancel_handler
 from src.modules.bot_context import BotContext
+from src.modules.middleware import update_user
 from src.modules.reddit_manager import RedditManager
-from telegram.ext import ConversationHandler, CommandHandler, MessageHandler, filters
 
 
 async def login_command_handler(update: Update, context: BotContext):
@@ -15,7 +16,16 @@ async def login_command_handler(update: Update, context: BotContext):
         )
         return ConversationState.END
 
-    auth_url = RedditManager.create_auth_url(update.message.from_user.id)
+    # Use user's keys if available
+    client_id = None
+    client_secret = None
+    if context.user.keys:
+        client_id = context.user.keys.client_id
+        client_secret = context.user.keys.client_secret
+
+    auth_url = RedditManager.create_auth_url(
+        update.message.from_user.id, client_id=client_id, client_secret=client_secret
+    )
 
     keyboard = [[InlineKeyboardButton("Authenticate Reddit", url=auth_url)]]
 
@@ -28,12 +38,21 @@ async def login_command_handler(update: Update, context: BotContext):
 
 async def auth_code_handler(update: Update, context: BotContext):
     auth_code = update.message.text
-    refresh_token, username = RedditManager.authorize_user(
-        update.message.from_user.id, auth_code
-    )
-    db.update_user(update.message.from_user.id, set={"refresh_token": refresh_token})
+    user_id = update.message.from_user.id
 
-    context.reddit = RedditManager(refresh_token)
+    # Use user's keys if available
+    client_id = None
+    client_secret = None
+    if context.user.keys:
+        client_id = context.user.keys.client_id
+        client_secret = context.user.keys.client_secret
+
+    refresh_token, username = RedditManager.authorize_user(
+        user_id, auth_code, client_id=client_id, client_secret=client_secret
+    )
+    db.update_user(user_id, set={"refresh_token": refresh_token})
+
+    update_user(update, context, user_id)
     await update.message.reply_text(
         f"Reddit authenticated successfully as u/{username}"
     )
@@ -41,7 +60,11 @@ async def auth_code_handler(update: Update, context: BotContext):
 
 
 async def logout_command_handler(update: Update, context: BotContext):
-    db.update_user(update.message.from_user.id, unset={"refresh_token": ""})
+    context.user.refresh_token = None
+    context.user.save()
+
+    context.user_data.pop("reddit", None)
+    context.user_data.pop("user", None)
     await update.message.reply_text("Reddit logged out successfully")
     return ConversationState.END
 

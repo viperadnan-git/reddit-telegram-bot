@@ -1,23 +1,19 @@
 import logging
 
-from telegram import Update
+from telegram import BotCommand, Update
 from telegram.constants import ParseMode
 from telegram.ext import (
     Application,
     CommandHandler,
     ContextTypes,
-    ConversationHandler,
     Defaults,
-    MessageHandler,
     TypeHandler,
-    filters,
 )
 
 from src.config import Config
-from src.constant import ConversationState
-from src.database import db
-from src.handlers.common import cancel_handler, start_command_handler
-from src.handlers.login import auth_code_handler, get_login_handler, login_command_handler, logout_command_handler
+from src.handlers.common import start_command_handler
+from src.handlers.keys import get_keys_handler
+from src.handlers.login import get_login_handler, logout_command_handler
 from src.handlers.post import get_post_handler
 from src.handlers.subreddit import (
     join_command_handler,
@@ -25,32 +21,24 @@ from src.handlers.subreddit import (
     subreddit_command_handler,
 )
 from src.modules.bot_context import BotContext
-from src.modules.reddit_manager import RedditManager
+from src.modules.middleware import user_middleware
 
 logger = logging.getLogger(__name__)
 
 
 async def post_init(application: Application) -> None:
-    pass
-
-
-async def user_middleware(update: Update, context: BotContext) -> None:
-    if update.effective_user:
-        user_id = update.effective_user.id
-
-        user = db.get_user(user_id)
-        if not user:
-            user = db.update_user(
-                user_id,
-                set={
-                    "name": update.effective_user.full_name,
-                    "username": update.effective_user.username,
-                },
-            )
-
-        context.user_data["user"] = user
-        if refresh_token := user.get("refresh_token"):
-            context.reddit = RedditManager(refresh_token)
+    await application.bot.set_my_commands(
+        [
+            BotCommand("start", "Start the bot"),
+            BotCommand("login", "Login to your Reddit account"),
+            BotCommand("logout", "Logout from your Reddit account"),
+            BotCommand("keys", "Manage your Reddit API keys"),
+            BotCommand("post", "Post a message to Reddit"),
+            BotCommand("join", "Join a subreddit"),
+            BotCommand("leave", "Leave a subreddit"),
+            BotCommand("subreddit", "List your subscribed subreddits"),
+        ]
+    )
 
 
 def main():
@@ -76,6 +64,7 @@ def main():
     application.add_handler(get_login_handler())
     application.add_handler(CommandHandler("logout", logout_command_handler))
 
+    application.add_handler(get_keys_handler())
     application.add_handler(get_post_handler())
 
     if Config.WEBHOOK_URL:

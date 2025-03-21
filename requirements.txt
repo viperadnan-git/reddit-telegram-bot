@@ -2,3 +2,4 @@ python-telegram-bot[webhooks]
 python-dotenv
 praw
 pymongo
+pydantic

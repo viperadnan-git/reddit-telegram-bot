@@ -298,7 +298,7 @@ def get_post_handler() -> ConversationHandler:
     return ConversationHandler(
         entry_points=[
             MessageHandler(
-                filters.TEXT
+                (filters.TEXT & ~filters.COMMAND)
                 | filters.VIDEO
                 | filters.PHOTO
                 | filters.Document.VIDEO
